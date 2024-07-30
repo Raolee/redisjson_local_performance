@@ -36,22 +36,21 @@ cmd/main.go 를 실행합니다.
 #### 1. Redis Client 연결
 본 테스트에서 중요한 Client option은 아래 3개입니다. `PoolSize`, `MinIdleConns`, `MaxIdleConns`
 
-- **PoolSize**: 예상되는 동시 요청을 관리하는 Pool 크기
-- **MinIdleConns**: 초기에 연결한 Redis connection 수
-- **MaxIdleConns**: 최대 연결할 수 있는 Redis connection 수
+- **PoolSize**: 최대 socket connection 수
+- **MinIdleConns**: 최소 유휴(idle) connection 수
+- **MaxIdleConns**: 최대 유휴(idle) connection 수
 
 ##### 위 옵션과의 성능 시나리와의 관계
-1. 실제 PoolSize 가 작다면, 아무리 요청을 보내도 wating time이 길어져서 성능 측정 결과가 좋지 않게 나옵니다.
-2. MinIdleConns 가 작은 상태에서 많은 요청을 받으면, MaxIdleConns 까지 커넥션을 늘리게되는데 이 시간이 집계에 포함되어 느리게 측정됩니다.
-3. MaxIdleConns 이 작다면, goroutine 으로 많은 동시 요청을 보내도, 커넥션을 획득하기 전까지 대기 하므로 정확한 퍼포먼스 측정이 어렵습니다.
-
+1. 실제 PoolSize 가 작다면, 아무리 요청을 보내도 커넥션이 부족하여 goroutine이 많아지는 성능의 결과가 좋지 않게 나옵니다.
+2. MinIdleConns 가 너무 작으면, 내부적으로 커넥션을 재사용하지 못해서 조금 더 좋지 않은 성능을 보입니다.
+3. MaxIdleConns 은 PoolSize와 같은 값을 설정해도 되지면, Redis server가 여러 Client 를 받는 상황을 고려하면 redis의 자원을 과도하게 사용하게 됩니다.
 ```go
 // Connect to the Redis server
 rdb := redis.NewClient(&redis.Options{
     Addr:         fmt.Sprintf("%s:%d", container.Host, container.DefaultPort()),
-    PoolSize:     32, // goroutine 와 같거나 크게 설정
-    MinIdleConns: 32, // 미리 맺어놓을 connection 수, 이 값을 작게 시작하면 첫 performance 테스트가 느리게 측정됨
-    MaxIdleConns: 32, // 최대 connection 수 (= 시나리오 중, goroutine을 제일 많이 생성하는 것과 동일한 개수로)
+    PoolSize:     64, // socket connection을 맺는 최대 수
+    MinIdleConns: 16, // 최소 유휴 connection 수
+    MaxIdleConns: 32, // 최대 유휴 connection 수
 })
 
 ```
@@ -98,74 +97,99 @@ JSON 객체의 단일 필드를 업데이트하는 성능을 측정합니다.
 #### 4. 결과 확인
 본 로컬에서 수행하면 아래와 같은 방식으로 결과가 나옵니다.
 ```shell
+따뜻해져라...
+따뜻해졌지?
+
 -------------------------------------------------------------
 Measure Set Performance - Progress by Size (100 byte to 100kb)
 -------------------------------------------------------------
-[Total-1][10 byte] Set 1000 operations in 1.3251818s (RPS: 754.613442)
-[Total-1][100 byte] Set 1000 operations in 780.6935ms (RPS: 1280.912420)
-[Total-1][500 byte] Set 1000 operations in 868.9301ms (RPS: 1150.840557)
-[Total-1][1000 byte] Set 1000 operations in 999.8238ms (RPS: 1000.176231)
-[Total-1][10000 byte] Set 1000 operations in 1.2781323s (RPS: 782.391619)
-[Total-1][100000 byte] Set 1000 operations in 3.047146s (RPS: 328.175939)
+[Total-1][10 byte] Set 1000 operations in 922.3445ms (RPS: 1084.193596)
+[Total-1][100 byte] Set 1000 operations in 855.8548ms (RPS: 1168.422494)
+[Total-1][500 byte] Set 1000 operations in 880.0066ms (RPS: 1136.355114)
+[Total-1][1000 byte] Set 1000 operations in 816.3636ms (RPS: 1224.944375)
+[Total-1][10000 byte] Set 1000 operations in 1.1175261s (RPS: 894.833687)
+[Total-1][100000 byte] Set 1000 operations in 2.4602087s (RPS: 406.469581)
 -------------------------------------------------------------
-Measure Set Performance - 100 byte + increase goroutine count (4 to 8 to 16)
+Measure Set Performance - 100 byte + increase goroutine count (4 to 32)
 -------------------------------------------------------------
-[Total-4][100 byte] Set 4000 operations in 1.4065185s (RPS: 2843.901449)
-[Total-8][100 byte] Set 8000 operations in 1.7671214s (RPS: 4527.136619)
-[Total-16][100 byte] Set 16000 operations in 2.4252571s (RPS: 6597.238701)
-[Total-32][100 byte] Set 32000 operations in 4.1758783s (RPS: 7663.058571)
+[Total-4][100 byte] Set 4000 operations in 1.1615907s (RPS: 3443.553741)
+[Total-8][100 byte] Set 8000 operations in 1.8072508s (RPS: 4426.613063)
+[Total-16][100 byte] Set 16000 operations in 2.4774761s (RPS: 6458.185409)
+[Total-32][100 byte] Set 32000 operations in 4.2843884s (RPS: 7468.977369)
 -------------------------------------------------------------
-Measure Set Performance - 1kb  + increase goroutine count (4 to 8 to 16)
+Measure Set Performance - 1kb  + increase goroutine count (4 to 32)
 -------------------------------------------------------------
-[Total-4][1000 byte] Set 4000 operations in 1.2187744s (RPS: 3281.985575)
-[Total-8][1000 byte] Set 8000 operations in 2.115789s (RPS: 3781.095374)
-[Total-16][1000 byte] Set 16000 operations in 2.9169634s (RPS: 5485.156242)
-[Total-32][1000 byte] Set 32000 operations in 4.9683356s (RPS: 6440.788742)
+[Total-4][1000 byte] Set 4000 operations in 1.2024537s (RPS: 3326.531408)
+[Total-8][1000 byte] Set 8000 operations in 1.823888s (RPS: 4386.234242)
+[Total-16][1000 byte] Set 16000 operations in 2.5506944s (RPS: 6272.801634)
+[Total-32][1000 byte] Set 32000 operations in 5.5629542s (RPS: 5752.339288)
+-------------------------------------------------------------
+Measure Set Performance - 10kb  + increase goroutine count (4 to 32)
+-------------------------------------------------------------
+[Total-4][10000 byte] Set 4000 operations in 2.2309953s (RPS: 1792.921751)
+[Total-8][10000 byte] Set 8000 operations in 3.4327764s (RPS: 2330.475122)
+[Total-16][10000 byte] Set 16000 operations in 6.6393908s (RPS: 2409.859652)
+[Total-32][10000 byte] Set 32000 operations in 11.8301922s (RPS: 2704.943374)
 
 -------------------------------------------------------------
 Measure Get Performance - increase size (100byte to 100kb)
 -------------------------------------------------------------
-[Total-1][10 byte] Get 1000 operations in 1.1462733s (RPS: 872.392299)
-[Total-1][100 byte] Get 1000 operations in 992.1831ms (RPS: 1007.878485)
-[Total-1][1000 byte] Get 1000 operations in 1.315485s (RPS: 760.175905)
-[Total-1][10000 byte] Get 1000 operations in 1.211298s (RPS: 825.560680)
-[Total-1][100000 byte] Get 1000 operations in 2.7791054s (RPS: 359.828022)
+[Total-1][10 byte] Get 1000 operations in 863.5776ms (RPS: 1157.973528)
+[Total-1][100 byte] Get 1000 operations in 863.5647ms (RPS: 1157.990826)
+[Total-1][500 byte] Get 1000 operations in 937.1186ms (RPS: 1067.100792)
+[Total-1][1000 byte] Get 1000 operations in 851.9983ms (RPS: 1173.711262)
+[Total-1][10000 byte] Get 1000 operations in 1.2886438s (RPS: 776.009631)
+[Total-1][100000 byte] Get 1000 operations in 2.5290199s (RPS: 395.410095)
 -------------------------------------------------------------
-Measure Get Performance - 100 byte + increase goroutine count (4 to 8 to 16)
+Measure Get Performance - 100 byte + increase goroutine count (4 to 32)
 -------------------------------------------------------------
-[Total-4][100 byte] Get 4000 operations in 1.5121049s (RPS: 2645.319118)
-[Total-8][100 byte] Get 8000 operations in 1.6289788s (RPS: 4911.052249)
-[Total-16][100 byte] Get 16000 operations in 2.9560816s (RPS: 5412.570478)
-[Total-32][100 byte] Get 32000 operations in 4.4068731s (RPS: 7261.384495)
+[Total-4][100 byte] Get 4000 operations in 1.3021409s (RPS: 3071.864189)
+[Total-8][100 byte] Get 8000 operations in 1.7026513s (RPS: 4698.554543)
+[Total-16][100 byte] Get 16000 operations in 2.5101339s (RPS: 6374.161952)
+[Total-32][100 byte] Get 32000 operations in 4.5651414s (RPS: 7009.640490)
 -------------------------------------------------------------
-Measure Get Performance - 1kb + increase goroutine count (4 to 8 to 16)
+Measure Get Performance - 1kb + increase goroutine count (4 to 32)
 -------------------------------------------------------------
-[Total-4][1000 byte] Get 4000 operations in 1.2542926s (RPS: 3189.048552)
-[Total-8][1000 byte] Get 8000 operations in 1.586307s (RPS: 5043.159994)
-[Total-16][1000 byte] Get 16000 operations in 2.7451266s (RPS: 5828.510787)
-[Total-32][1000 byte] Get 32000 operations in 4.3629055s (RPS: 7334.561796)
+[Total-4][1000 byte] Get 4000 operations in 1.3018015s (RPS: 3072.665072)
+[Total-8][1000 byte] Get 8000 operations in 1.7169591s (RPS: 4659.400448)
+[Total-16][1000 byte] Get 16000 operations in 2.5439351s (RPS: 6289.468627)
+[Total-32][1000 byte] Get 32000 operations in 4.3897454s (RPS: 7289.716620)
+-------------------------------------------------------------
+Measure Get Performance - 10kb + increase goroutine count (4 to 32)
+-------------------------------------------------------------
+[Total-4][10000 byte] Get 4000 operations in 1.5782829s (RPS: 2534.399885)
+[Total-8][10000 byte] Get 8000 operations in 2.247821s (RPS: 3559.002252)
+[Total-16][10000 byte] Get 16000 operations in 4.2545394s (RPS: 3760.689112)
+[Total-32][10000 byte] Get 32000 operations in 7.5655268s (RPS: 4229.712067)
 
 -------------------------------------------------------------
 Measure Update Performance (updating one field) - Increase size (100byte to 100kb)
 -------------------------------------------------------------
-[Total-1][10 byte] Update 1000 operations in 1.1755575s (RPS: 850.660219)
-[Total-1][100 byte] Update 1000 operations in 1.0224089s (RPS: 978.082253)
-[Total-1][500 byte] Update 1000 operations in 954.1732ms (RPS: 1048.027758)
-[Total-1][1000 byte] Update 1000 operations in 876.9975ms (RPS: 1140.254106)
-[Total-1][10000 byte] Update 1000 operations in 892.0004ms (RPS: 1121.075730)
-[Total-1][100000 byte] Update 1000 operations in 918.4566ms (RPS: 1088.783074)
+[Total-1][10 byte] Update 1000 operations in 830.0006ms (RPS: 1204.818406)
+[Total-1][100 byte] Update 1000 operations in 1.0500831s (RPS: 952.305584)
+[Total-1][500 byte] Update 1000 operations in 881.0001ms (RPS: 1135.073651)
+[Total-1][1000 byte] Update 1000 operations in 915.9984ms (RPS: 1091.704964)
+[Total-1][10000 byte] Update 1000 operations in 1.0281462s (RPS: 972.624321)
+[Total-1][100000 byte] Update 1000 operations in 977.5427ms (RPS: 1022.973216)
 -------------------------------------------------------------
-Measure Update Performance (updating one field) - 100 byte + increase goroutine count (4 to 8 to 16)
+Measure Update Performance (updating one field) - 100 byte + increase goroutine count (4 to 32)
 -------------------------------------------------------------
-[Total-4][100 byte] Update 4000 operations in 1.1158085s (RPS: 3584.844532)
-[Total-8][100 byte] Update 8000 operations in 1.5309941s (RPS: 5225.363050)
-[Total-16][100 byte] Update 16000 operations in 2.5220799s (RPS: 6343.970308)
-[Total-32][100 byte] Update 32000 operations in 4.1471011s (RPS: 7716.233395)
+[Total-4][100 byte] Update 4000 operations in 1.153446s (RPS: 3467.869324)
+[Total-8][100 byte] Update 8000 operations in 1.573465s (RPS: 5084.320274)
+[Total-16][100 byte] Update 16000 operations in 2.4578575s (RPS: 6509.734596)
+[Total-32][100 byte] Update 32000 operations in 4.2704108s (RPS: 7493.424286)
 -------------------------------------------------------------
-Measure Update Performance (updating one field) - 1kb + increase goroutine count (4 to 8 to 16)
+Measure Update Performance (updating one field) - 1kb + increase goroutine count (4 to 32)
 -------------------------------------------------------------
-[Total-4][1000 byte] Update 4000 operations in 1.1800931s (RPS: 3389.563078)
-[Total-8][1000 byte] Update 8000 operations in 1.5368841s (RPS: 5205.337214)
-[Total-16][1000 byte] Update 16000 operations in 2.5278661s (RPS: 6329.449175)
-[Total-32][1000 byte] Update 32000 operations in 4.4212289s (RPS: 7237.806665)
+[Total-4][1000 byte] Update 4000 operations in 1.2919139s (RPS: 3096.181564)
+[Total-8][1000 byte] Update 8000 operations in 1.5984548s (RPS: 5004.833418)
+[Total-16][1000 byte] Update 16000 operations in 2.4583829s (RPS: 6508.343350)
+[Total-32][1000 byte] Update 32000 operations in 4.260945s (RPS: 7510.071123)
+-------------------------------------------------------------
+Measure Update Performance (updating one field) - 10kb + increase goroutine count (4 to 32)
+-------------------------------------------------------------
+[Total-4][10000 byte] Update 4000 operations in 1.3952209s (RPS: 2866.929531)
+[Total-8][10000 byte] Update 8000 operations in 1.7446088s (RPS: 4585.555226)
+[Total-16][10000 byte] Update 16000 operations in 2.4422384s (RPS: 6551.366975)
+[Total-32][10000 byte] Update 32000 operations in 4.1825854s (RPS: 7650.770263)
 ```

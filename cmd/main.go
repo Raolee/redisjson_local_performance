@@ -25,9 +25,9 @@ func main() {
 	// Connect to the Redis server
 	rdb := redis.NewClient(&redis.Options{
 		Addr:         fmt.Sprintf("%s:%d", container.Host, container.DefaultPort()),
-		PoolSize:     32, // goroutine 와 같거나 크게 설정
-		MinIdleConns: 32, // 미리 맺어놓을 connection 수, 이 값을 작게 시작하면 첫 performance 테스트가 느리게 측정됨
-		MaxIdleConns: 32, // 최대 connection 수 (= 시나리오 중, goroutine을 제일 많이 생성하는 것과 동일한 개수로)
+		PoolSize:     64, // socket connection 을 맺는 최대 수
+		MinIdleConns: 16, // 최소 유휴 connection 수
+		MaxIdleConns: 32, // 최대 유휴 connection 수
 	})
 
 	appCtx := context.Background()
@@ -72,7 +72,7 @@ func main() {
 
 	// 동시 수행 수별 비교
 	fmt.Println("-------------------------------------------------------------")
-	fmt.Println("Measure Set Performance - 100 byte + increase goroutine count (4 to 8 to 16)")
+	fmt.Println("Measure Set Performance - 100 byte + increase goroutine count (4 to 32)")
 	fmt.Println("-------------------------------------------------------------")
 	ScenarioSet(rh, ItemDataSize_100byte, 4000, 4)
 	ScenarioSet(rh, ItemDataSize_100byte, 8000, 8)
@@ -80,14 +80,21 @@ func main() {
 	ScenarioSet(rh, ItemDataSize_100byte, 32000, 32)
 
 	// 동시 수행 및 사이즈 별 소곧 비교
-	// 100 byte VS 1 kb
 	fmt.Println("-------------------------------------------------------------")
-	fmt.Println("Measure Set Performance - 1kb  + increase goroutine count (4 to 8 to 16)")
+	fmt.Println("Measure Set Performance - 1kb  + increase goroutine count (4 to 32)")
 	fmt.Println("-------------------------------------------------------------")
 	ScenarioSet(rh, ItemDataSize_1kb, 4000, 4)
 	ScenarioSet(rh, ItemDataSize_1kb, 8000, 8)
 	ScenarioSet(rh, ItemDataSize_1kb, 16000, 16)
 	ScenarioSet(rh, ItemDataSize_1kb, 32000, 32)
+
+	fmt.Println("-------------------------------------------------------------")
+	fmt.Println("Measure Set Performance - 10kb  + increase goroutine count (4 to 32)")
+	fmt.Println("-------------------------------------------------------------")
+	ScenarioSet(rh, ItemDataSize_10kb, 4000, 4)
+	ScenarioSet(rh, ItemDataSize_10kb, 8000, 8)
+	ScenarioSet(rh, ItemDataSize_10kb, 16000, 16)
+	ScenarioSet(rh, ItemDataSize_10kb, 32000, 32)
 
 	//////////// Measure Get Performance
 
@@ -98,13 +105,14 @@ func main() {
 	fmt.Println("-------------------------------------------------------------")
 	ScenarioGet(rh, ItemDataSize_10byte, 1000, 1)
 	ScenarioGet(rh, ItemDataSize_100byte, 1000, 1)
+	ScenarioGet(rh, ItemDataSize_500byte, 1000, 1)
 	ScenarioGet(rh, ItemDataSize_1kb, 1000, 1)
 	ScenarioGet(rh, ItemDataSize_10kb, 1000, 1)
 	ScenarioGet(rh, ItemDataSize_100kb, 1000, 1)
 
 	// 동시 수행 에 따른 비교
 	fmt.Println("-------------------------------------------------------------")
-	fmt.Println("Measure Get Performance - 100 byte + increase goroutine count (4 to 8 to 16)")
+	fmt.Println("Measure Get Performance - 100 byte + increase goroutine count (4 to 32)")
 	fmt.Println("-------------------------------------------------------------")
 	ScenarioGet(rh, ItemDataSize_100byte, 4000, 4)
 	ScenarioGet(rh, ItemDataSize_100byte, 8000, 8)
@@ -112,14 +120,21 @@ func main() {
 	ScenarioGet(rh, ItemDataSize_100byte, 32000, 32)
 
 	// 동시 수행 + 사이즈에 따른 비교
-	// 100 byte VS 1kb
 	fmt.Println("-------------------------------------------------------------")
-	fmt.Println("Measure Get Performance - 1kb + increase goroutine count (4 to 8 to 16)")
+	fmt.Println("Measure Get Performance - 1kb + increase goroutine count (4 to 32)")
 	fmt.Println("-------------------------------------------------------------")
 	ScenarioGet(rh, ItemDataSize_1kb, 4000, 4)
 	ScenarioGet(rh, ItemDataSize_1kb, 8000, 8)
 	ScenarioGet(rh, ItemDataSize_1kb, 16000, 16)
 	ScenarioGet(rh, ItemDataSize_1kb, 32000, 32)
+
+	fmt.Println("-------------------------------------------------------------")
+	fmt.Println("Measure Get Performance - 10kb + increase goroutine count (4 to 32)")
+	fmt.Println("-------------------------------------------------------------")
+	ScenarioGet(rh, ItemDataSize_10kb, 4000, 4)
+	ScenarioGet(rh, ItemDataSize_10kb, 8000, 8)
+	ScenarioGet(rh, ItemDataSize_10kb, 16000, 16)
+	ScenarioGet(rh, ItemDataSize_10kb, 32000, 32)
 
 	//////////// Measure Field Update Performance (사실 SET 명령은 동일하게 사용함)
 	fmt.Println()
@@ -134,7 +149,7 @@ func main() {
 	ScenarioUpdate(rh, ItemDataSize_100kb, 1000, 1)
 
 	fmt.Println("-------------------------------------------------------------")
-	fmt.Println("Measure Update Performance (updating one field) - 100 byte + increase goroutine count (4 to 8 to 16)")
+	fmt.Println("Measure Update Performance (updating one field) - 100 byte + increase goroutine count (4 to 32)")
 	fmt.Println("-------------------------------------------------------------")
 	ScenarioUpdate(rh, ItemDataSize_100byte, 4000, 4)
 	ScenarioUpdate(rh, ItemDataSize_100byte, 8000, 8)
@@ -142,10 +157,18 @@ func main() {
 	ScenarioUpdate(rh, ItemDataSize_100byte, 32000, 32)
 
 	fmt.Println("-------------------------------------------------------------")
-	fmt.Println("Measure Update Performance (updating one field) - 1kb + increase goroutine count (4 to 8 to 16)")
+	fmt.Println("Measure Update Performance (updating one field) - 1kb + increase goroutine count (4 to 32)")
 	fmt.Println("-------------------------------------------------------------")
 	ScenarioUpdate(rh, ItemDataSize_1kb, 4000, 4)
 	ScenarioUpdate(rh, ItemDataSize_1kb, 8000, 8)
 	ScenarioUpdate(rh, ItemDataSize_1kb, 16000, 16)
 	ScenarioUpdate(rh, ItemDataSize_1kb, 32000, 32)
+
+	fmt.Println("-------------------------------------------------------------")
+	fmt.Println("Measure Update Performance (updating one field) - 10kb + increase goroutine count (4 to 32)")
+	fmt.Println("-------------------------------------------------------------")
+	ScenarioUpdate(rh, ItemDataSize_10kb, 4000, 4)
+	ScenarioUpdate(rh, ItemDataSize_10kb, 8000, 8)
+	ScenarioUpdate(rh, ItemDataSize_10kb, 16000, 16)
+	ScenarioUpdate(rh, ItemDataSize_10kb, 32000, 32)
 }
