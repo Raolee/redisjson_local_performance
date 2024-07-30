@@ -41,9 +41,9 @@ cmd/main.go 를 실행합니다.
 - **MaxIdleConns**: 최대 유휴(idle) connection 수
 
 ##### 위 옵션과의 성능 시나리와의 관계
-1. 실제 PoolSize 가 작다면, 아무리 요청을 보내도 커넥션이 부족하여 goroutine이 많아지는 성능의 결과가 좋지 않게 나옵니다.
-2. MinIdleConns 가 너무 작으면, 내부적으로 커넥션을 재사용하지 못해서 조금 더 좋지 않은 성능을 보입니다.
-3. MaxIdleConns 은 PoolSize와 같은 값을 설정해도 되지면, Redis server가 여러 Client 를 받는 상황을 고려하면 redis의 자원을 과도하게 사용하게 됩니다.
+1. Gourtine 수 보다, 실제 PoolSize 가 작다면 요청을 다 처리하지 못하고 대기하여 성능의 결과가 좋지 않게 나옵니다.
+2. MinIdleConns 가 너무 작으면, 내부적으로 커넥션을 재사용하지 못해서, 성능의 결과가 조금 더 좋지 않게 나옵니다.
+3. MaxIdleConns 은 작으면 성능에 영향을 주지만, PoolSize와 동일하게 설정해도됩니다. 단, Redis server가 입장에서 사용치 않는 socket을 계속 유휴상태로 두게 되므로 정작 필요한 connection을 맺지 못하는 리스크한 상황이 발생할 수 있습니다.
 ```go
 // Connect to the Redis server
 rdb := redis.NewClient(&redis.Options{
