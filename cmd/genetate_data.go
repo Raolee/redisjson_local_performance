@@ -13,26 +13,6 @@ type Item struct {
 	Field8  string `json:"field8"`
 	Field9  string `json:"field9"`
 	Field10 string `json:"field10"`
-	Field11 string `json:"field11"`
-	Field12 string `json:"field12"`
-	Field13 string `json:"field13"`
-	Field14 string `json:"field14"`
-	Field15 string `json:"field15"`
-	Field16 string `json:"field16"`
-	Field17 string `json:"field17"`
-	Field18 string `json:"field18"`
-	Field19 string `json:"field19"`
-	Field20 string `json:"field20"`
-	Field21 string `json:"field21"`
-	Field22 string `json:"field22"`
-	Field23 string `json:"field23"`
-	Field24 string `json:"field24"`
-	Field25 string `json:"field25"`
-	Field26 string `json:"field26"`
-	Field27 string `json:"field27"`
-	Field28 string `json:"field28"`
-	Field29 string `json:"field29"`
-	Field30 string `json:"field30"`
 }
 
 func generateField(size int) string {
@@ -48,15 +28,15 @@ func generateField(size int) string {
 	return string(runes)
 }
 
-type ItemDataSize int
+type MaybeItemDataSize int
 
 const (
-	ItemDataSize_10byte  = ItemDataSize(10)
-	ItemDataSize_100byte = ItemDataSize(100)
-	ItemDataSize_500byte = ItemDataSize(500)
-	ItemDataSize_1kb     = ItemDataSize(1000)
-	ItemDataSize_10kb    = ItemDataSize(10000)
-	ItemDataSize_100kb   = ItemDataSize(100000)
+	Maybe10byte  = MaybeItemDataSize(10)
+	Maybe100byte = MaybeItemDataSize(100)
+	Maybe500byte = MaybeItemDataSize(500)
+	Maybe1kb     = MaybeItemDataSize(1000)
+	Maybe10kb    = MaybeItemDataSize(10000)
+	Maybe100kb   = MaybeItemDataSize(100000)
 )
 
 type sizeDispenser struct {
@@ -69,19 +49,20 @@ func (s sizeDispenser) dispense() int {
 		s.remainSize -= s.windowSize
 		return s.windowSize
 	}
-	defer func() {
-		s.remainSize = 0
-	}()
-	return s.remainSize
+	if s.remainSize > 0 {
+		return s.remainSize
+	}
+	return 1 // 최소 size 1은 보장
 }
 
-func generateLargeJSON(itemDataSize ItemDataSize) Item {
+func generateLargeJSON(itemDataSize MaybeItemDataSize) Item {
 
 	dispenser := sizeDispenser{
-		remainSize: int(itemDataSize) * 30,
-		windowSize: int(itemDataSize) / 30,
+		remainSize: int(itemDataSize),
+		windowSize: int(itemDataSize) / 10,
 	}
 
+	// [Note] : 아래 데이털를 json 으로 바꾸면 '{', '}', '"' 와 같은 문자가 추가되므로 itemDataSize 를 무조건 초과하는 데이터가 만들어진다.
 	return Item{
 		Field1:  generateField(dispenser.dispense()),
 		Field2:  generateField(dispenser.dispense()),
@@ -93,25 +74,5 @@ func generateLargeJSON(itemDataSize ItemDataSize) Item {
 		Field8:  generateField(dispenser.dispense()),
 		Field9:  generateField(dispenser.dispense()),
 		Field10: generateField(dispenser.dispense()),
-		Field11: generateField(dispenser.dispense()),
-		Field12: generateField(dispenser.dispense()),
-		Field13: generateField(dispenser.dispense()),
-		Field14: generateField(dispenser.dispense()),
-		Field15: generateField(dispenser.dispense()),
-		Field16: generateField(dispenser.dispense()),
-		Field17: generateField(dispenser.dispense()),
-		Field18: generateField(dispenser.dispense()),
-		Field19: generateField(dispenser.dispense()),
-		Field20: generateField(dispenser.dispense()),
-		Field21: generateField(dispenser.dispense()),
-		Field22: generateField(dispenser.dispense()),
-		Field23: generateField(dispenser.dispense()),
-		Field24: generateField(dispenser.dispense()),
-		Field25: generateField(dispenser.dispense()),
-		Field26: generateField(dispenser.dispense()),
-		Field27: generateField(dispenser.dispense()),
-		Field28: generateField(dispenser.dispense()),
-		Field29: generateField(dispenser.dispense()),
-		Field30: generateField(dispenser.dispense()),
 	}
 }
