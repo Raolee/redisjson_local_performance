@@ -33,6 +33,36 @@ go mod tidy
 cmd/main.go 를 실행합니다.  
 (file 단위 실행이 아닌, package 단위로 실행 필요) 
 
+#### 0. 어떤 Redis Mode를 사용할 것인지 선택 (완전 내구성 보장 or 내구성 보장 X)
+
+redis의 완전한 durability 보장은 아래 옵션을 키면된다.  
+모든 쓰기를 AOF로 즉시 동기화 시키는 옵션으로 데이터를 잃어버릴 가능성이 Zero가 된다.
+```shell
+redislabs/rejson:latest  redis-server --loadmodule /usr/lib/redis/modules/rejson.so --appendonly yes --appendfsync always
+```
+
+본 테스트 시나리오에서는 아래 처럼 어떤 redis mode로 성능테스트를 수행할지 결정할 수 있다.
+```go
+    usingAlwaysAndFsync := true // 이 변수를 true/false 로 변경해서 테스트 진행
+	if usingAlwaysAndFsync {
+		container, err = gnomock.StartCustom("redislabs/rejson:latest",
+			gnomock.DefaultTCP(6379),
+			gnomock.WithHostMounts("c:/dev/redis", "/data"), // [Note] : 본인 PC의 SSD 경로로 지정하세요!
+			gnomock.WithCommand("redis-server",
+				"--loadmodule", "/usr/lib/redis/modules/rejson.so",
+				"--appendonly", "yes",
+				"--appendfsync", "always",
+			))
+		if err != nil {
+			log.Fatalf("could not start gnomock container: %v", err)
+		}
+	} else {
+		// 생략...
+	}
+```
+
+**실제 durability 를 보장하는 모드 + AOF의 SSD 저장을 하면 성능은 1/3 정도 감소한다.**
+
 #### 1. Redis Client 연결
 본 테스트에서 중요한 Client option은 아래 3개입니다. `PoolSize`, `MinIdleConns`, `MaxIdleConns`
 

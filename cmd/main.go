@@ -14,12 +14,29 @@ import (
 // 필독!! //
 // - 꼭 package 로 main 을 실행해주세요. file 단위로 실행하면 generate_data.go, scenarios.go 를 읽어오지 못해서 작동 못함
 func main() {
-	// Define a custom Redis preset to use the ReJSON image
-	container, err := gnomock.StartCustom("redislabs/rejson:latest", gnomock.DefaultTCP(6379))
-	if err != nil {
-		log.Fatalf("could not start gnomock container: %v", err)
-	}
 
+	// Define a custom Redis preset to use the ReJSON image
+	var container *gnomock.Container
+	var err error
+	usingAlwaysAndFsync := true // 이 변수를 true/false 로 변경해서 테스트 진행
+	if usingAlwaysAndFsync {
+		container, err = gnomock.StartCustom("redislabs/rejson:latest",
+			gnomock.DefaultTCP(6379),
+			gnomock.WithHostMounts("c:/dev/redis", "/data"), // [Note] : 본인 PC의 SSD 경로로 지정하세요!
+			gnomock.WithCommand("redis-server",
+				"--loadmodule", "/usr/lib/redis/modules/rejson.so",
+				"--appendonly", "yes",
+				"--appendfsync", "always",
+			))
+		if err != nil {
+			log.Fatalf("could not start gnomock container: %v", err)
+		}
+	} else {
+		container, err = gnomock.StartCustom("redislabs/rejson:latest", gnomock.DefaultTCP(6379))
+		if err != nil {
+			log.Fatalf("could not start gnomock container: %v", err)
+		}
+	}
 	defer func() {
 		_ = gnomock.Stop(container)
 	}()
@@ -65,12 +82,12 @@ func main() {
 	fmt.Println("-------------------------------------------------------------")
 	fmt.Println("Measure Set Performance - Progress by Size")
 	fmt.Println("-------------------------------------------------------------")
-	ScenarioSet(rh, Maybe10byte, 1000, 1)
-	ScenarioSet(rh, Maybe100byte, 1000, 1)
-	ScenarioSet(rh, Maybe500byte, 1000, 1)
-	ScenarioSet(rh, Maybe1kb, 1000, 1)
-	ScenarioSet(rh, Maybe10kb, 1000, 1)
-	ScenarioSet(rh, Maybe100kb, 1000, 1)
+	ScenarioSet(rh, Maybe10byte, 100, 1)
+	ScenarioSet(rh, Maybe100byte, 100, 1)
+	ScenarioSet(rh, Maybe500byte, 100, 1)
+	ScenarioSet(rh, Maybe1kb, 100, 1)
+	ScenarioSet(rh, Maybe10kb, 100, 1)
+	ScenarioSet(rh, Maybe100kb, 100, 1)
 
 	// 동시 수행 수별 비교
 	fmt.Println("-------------------------------------------------------------")
@@ -105,12 +122,12 @@ func main() {
 	fmt.Println("-------------------------------------------------------------")
 	fmt.Println("Measure Get Performance - process by size")
 	fmt.Println("-------------------------------------------------------------")
-	ScenarioGet(rh, Maybe10byte, 1000, 1)
-	ScenarioGet(rh, Maybe100byte, 1000, 1)
-	ScenarioGet(rh, Maybe500byte, 1000, 1)
-	ScenarioGet(rh, Maybe1kb, 1000, 1)
-	ScenarioGet(rh, Maybe10kb, 1000, 1)
-	ScenarioGet(rh, Maybe100kb, 1000, 1)
+	ScenarioGet(rh, Maybe10byte, 100, 1)
+	ScenarioGet(rh, Maybe100byte, 100, 1)
+	ScenarioGet(rh, Maybe500byte, 100, 1)
+	ScenarioGet(rh, Maybe1kb, 100, 1)
+	ScenarioGet(rh, Maybe10kb, 100, 1)
+	ScenarioGet(rh, Maybe100kb, 100, 1)
 
 	// 동시 수행 에 따른 비교
 	fmt.Println("-------------------------------------------------------------")
@@ -143,12 +160,12 @@ func main() {
 	fmt.Println("-------------------------------------------------------------")
 	fmt.Println("Measure Update Performance (updating one field) - progress by size")
 	fmt.Println("-------------------------------------------------------------")
-	ScenarioUpdate(rh, Maybe10byte, 1000, 1)
-	ScenarioUpdate(rh, Maybe100byte, 1000, 1)
+	ScenarioUpdate(rh, Maybe10byte, 100, 1)
+	ScenarioUpdate(rh, Maybe100byte, 100, 1)
 	ScenarioUpdate(rh, Maybe500byte, 1000, 1)
-	ScenarioUpdate(rh, Maybe1kb, 1000, 1)
-	ScenarioUpdate(rh, Maybe10kb, 1000, 1)
-	ScenarioUpdate(rh, Maybe100kb, 1000, 1)
+	ScenarioUpdate(rh, Maybe1kb, 100, 1)
+	ScenarioUpdate(rh, Maybe10kb, 100, 1)
+	ScenarioUpdate(rh, Maybe100kb, 100, 1)
 
 	fmt.Println("-------------------------------------------------------------")
 	fmt.Println("Measure Update Performance (updating one field) - maybe 100 byte + increase goroutine count (4 to 32)")
