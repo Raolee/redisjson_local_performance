@@ -82,12 +82,12 @@ func main() {
 	fmt.Println("-------------------------------------------------------------")
 	fmt.Println("Measure Set Performance - Progress by Size")
 	fmt.Println("-------------------------------------------------------------")
-	ScenarioSet(rh, Maybe10byte, 100, 1)
-	ScenarioSet(rh, Maybe100byte, 100, 1)
-	ScenarioSet(rh, Maybe500byte, 100, 1)
-	ScenarioSet(rh, Maybe1kb, 100, 1)
-	ScenarioSet(rh, Maybe10kb, 100, 1)
-	ScenarioSet(rh, Maybe100kb, 100, 1)
+	ScenarioSet(rh, Maybe10byte, 1000, 1)
+	ScenarioSet(rh, Maybe100byte, 1000, 1)
+	ScenarioSet(rh, Maybe500byte, 1000, 1)
+	ScenarioSet(rh, Maybe1kb, 1000, 1)
+	ScenarioSet(rh, Maybe10kb, 1000, 1)
+	ScenarioSet(rh, Maybe100kb, 1000, 1)
 
 	// 동시 수행 수별 비교
 	fmt.Println("-------------------------------------------------------------")
